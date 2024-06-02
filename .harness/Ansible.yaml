@@ -1,0 +1,87 @@
+pipeline:
+  name: Ansible
+  identifier: Ansible
+  projectIdentifier: APIMInfrastructure
+  orgIdentifier: COVEA
+  tags: {}
+  stages:
+    - stage:
+        name: test
+        identifier: test
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Ssh
+          service:
+            serviceRef: test
+          environment:
+            environmentRef: <+input>
+            deployToAll: false
+            environmentInputs: <+input>
+            serviceOverrideInputs: <+input>
+            infrastructureDefinitions: <+input>
+          execution:
+            steps:
+              - stepGroup:
+                  name: test
+                  identifier: test
+                  steps:
+                    - stepGroup:
+                        name: test
+                        identifier: test
+                        steps:
+                          - step:
+                              type: DownloadHarnessStore
+                              name: DownloadHarnessStore_1
+                              identifier: DownloadHarnessStore_1
+                              spec:
+                                files:
+                                  - /test
+                          - step:
+                              type: DownloadAwsS3
+                              name: DownloadAwsS3_1
+                              identifier: DownloadAwsS3_1
+                              spec: {}
+                        stepGroupInfra:
+                          type: KubernetesDirect
+                          spec:
+                            connectorRef: account.maher_gke
+                            namespace: ges
+            rollbackSteps:
+              - stepGroup:
+                  name: Phase
+                  identifier: Phase
+                  strategy:
+                    repeat:
+                      items: <+stage.output.hosts>
+                      maxConcurrency: 1
+                      partitionSize: 1
+                      unit: Count
+                  steps:
+                    - stepGroup:
+                        name: Phase Group Rollback
+                        identifier: phase_group_rollback
+                        strategy:
+                          repeat:
+                            items: <+repeat.partition>
+                        steps:
+                          - step:
+                              name: Rollback
+                              identifier: Rollback
+                              timeout: 10m
+                              template:
+                                templateRef: account.Default_Install_War_Bash
+                                templateInputs:
+                                  type: Command
+                                  spec:
+                                    environmentVariables:
+                                      - name: DestinationDirectory
+                                        type: String
+                                        value: $HOME/<+service.name>/<+env.name>
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
